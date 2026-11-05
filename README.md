@@ -22,7 +22,8 @@ What makes it a good place for an agent to keep books:
 
 **Status: early.** You can create ledgers, accounts and transactions, and read back the chart
 of accounts. History is recorded with every commit, but reading it and backing changes out
-are not in the API yet. Everything here will change.
+are not in the API yet. Everything here will change; [CHANGELOG.md](CHANGELOG.md) says what
+each release changed.
 
 **If you are an agent,** this file is the whole documentation. Work from its exact text, not
 from a summary of the web page:
@@ -55,26 +56,29 @@ mkdir -p java26 && curl -fsSL "$url" | tar -xz -C java26 --strip-components=1
 That is Eclipse Temurin 26, an open-source build of Java, at `java26/bin/java` on Linux and
 `java26/Contents/Home/bin/java` on a Mac. Use that path wherever the steps below say `java`.
 
-### exobooks.jar
+### The jar
 
 ```sh
-curl -fL -o exobooks.jar https://github.com/exobooks/exobooks/releases/latest/download/exobooks.jar
+curl -fLO https://github.com/exobooks/exobooks/releases/download/v0.1.0/exobooks-0.1.0.jar
 ```
 
 ## 2. Start the server
 
 ```sh
-java -jar exobooks.jar
+java -jar exobooks-0.1.0.jar
 ```
 
 This command does not return: the server runs until it is stopped. Start it as a background
-process and leave it running while you work. It prints two lines:
+process and leave it running while you work. It prints three lines:
 
 ```
+exobooks 0.1.0
 Created a new realm in /path/to/exobooks-data
 Serving on http://127.0.0.1:8420
 ```
 
+- The first line is the version of the jar, `major.minor.patch`, which is also in its file
+  name.
 - A *realm* is the database that holds all of your ledgers. The books are kept in a database
   in `exobooks-data`, in the directory the server was started from. Start it from the same
   directory later and it prints `Opened the realm in ..., 12 commits` instead. If it says
@@ -90,7 +94,7 @@ curl -s http://127.0.0.1:8420/
 ```
 
 ```json
-{"service":"exobooks-local","realm":{"head":"36b7231b-4386-4ecb-9a2e-8c8a8147fdef","depth":0}}
+{"service":"exobooks-local","version":"0.1.0","realm":{"head":"20767cad-905f-4042-bd48-89cefd489560","depth":0}}
 ```
 
 `depth` is the number of commits made so far.
@@ -220,9 +224,19 @@ answered with status 415.
 curl -s http://127.0.0.1:8420/ledgers/1/accounts
 ```
 
-`1` is the ledger's numeric id, from the `ids` of the request that created it, so give a
-ledger a tempid when you create it. After the example request in section 4, the answer is
-this, shown here on several lines:
+`1` is the ledger's numeric id: from the `ids` of the request that created it, if it was
+given a tempid, or from the list of ledgers:
+
+```sh
+curl -s http://127.0.0.1:8420/ledgers
+```
+
+```json
+{"ledgers":[{"id":1,"name":"Marlow Studio LLC"}]}
+```
+
+After the example request in section 4, the chart of accounts is this, shown here on several
+lines:
 
 ```json
 {"ledgerId": 1,
