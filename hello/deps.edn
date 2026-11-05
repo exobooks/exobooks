@@ -1,0 +1,10 @@
+{;; The hello jar: Clojure, and sqlite4clj (SQLite over the FFM API, with libsqlite3 bundled
+ ;; for macOS and Linux, x86_64 and aarch64) at the commit exobooks' own copy is based on.
+ :paths ["src"]
+ :deps  {org.clojure/clojure            {:mvn/version "1.12.6"}
+         io.github.andersmurphy/sqlite4clj {:git/sha "fbe8fe031fb9394ae95c69335d1eab441a57830c"}}
+ :aliases
+ {:run   {:jvm-opts  ["--enable-native-access=ALL-UNNAMED"]
+          :main-opts ["-m" "exobooks.hello"]}
+  :build {:deps       {io.github.clojure/tools.build {:mvn/version "0.10.14"}}
+          :ns-default build}}}
