@@ -21,9 +21,9 @@ What makes it a good place for an agent to keep books:
   query, with no rate limits and no network round trips.
 
 **Status: early.** You can create ledgers, accounts and transactions, and read back the chart
-of accounts. History is recorded with every commit, but reading it and backing changes out
-are not in the API yet. Everything here will change; [CHANGELOG.md](CHANGELOG.md) says what
-each release changed.
+of accounts, as it is now or as it was at any earlier commit. Listing the history and backing
+a commit out are not in the API yet. Everything here will change;
+[CHANGELOG.md](CHANGELOG.md) says what each release changed.
 
 **If you are an agent,** this file is the whole documentation. Work from its exact text, not
 from a summary of the web page:
@@ -59,20 +59,21 @@ That is Eclipse Temurin 26, an open-source build of Java, at `java26/bin/java` o
 ### The jar
 
 ```sh
-curl -fLO https://github.com/exobooks/exobooks/releases/download/v0.1.0/exobooks-0.1.0.jar
+curl -fLO https://github.com/exobooks/exobooks/releases/download/v0.2.0/exobooks-0.2.0.jar
 ```
 
 ## 2. Start the server
 
 ```sh
-java -jar exobooks-0.1.0.jar
+java -jar exobooks-0.2.0.jar
 ```
 
 This command does not return: the server runs until it is stopped. Start it as a background
-process and leave it running while you work. It prints three lines:
+process and leave it running while you work. It prints three lines on standard output (Java
+may print notices of its own before them, on standard error):
 
 ```
-exobooks 0.1.0
+exobooks 0.2.0
 Created a new realm in /path/to/exobooks-data
 Serving on http://127.0.0.1:8420
 ```
@@ -85,6 +86,9 @@ Serving on http://127.0.0.1:8420
   `Created a new realm` when you expected existing books, it was started from the wrong
   directory.
 - `--dir <directory>` keeps the books somewhere else; `--port <port>` changes the port.
+- One server runs on a directory at a time. While it runs, its process id is in
+  `exobooks-data/server.pid`; a second start on the same directory is refused and names that
+  process.
 - It listens on 127.0.0.1 only and has no authentication.
 
 To check it is up:
@@ -94,10 +98,18 @@ curl -s http://127.0.0.1:8420/
 ```
 
 ```json
-{"service":"exobooks-local","version":"0.1.0","realm":{"head":"20767cad-905f-4042-bd48-89cefd489560","depth":0}}
+{"service":"exobooks-local","version":"0.2.0","realm":{"head":"d3361aa6-1977-4168-b922-62d77effc408","depth":0}}
 ```
 
-`depth` is the number of commits made so far.
+`head` is the id of the latest commit, and `depth` is the number of commits made so far.
+
+To stop it:
+
+```sh
+curl -s -X POST http://127.0.0.1:8420/shutdown -H 'Content-Type: application/json'
+```
+
+It answers `{"stopping":true}` and exits. Ending the process with `kill` stops it cleanly too.
 
 ## 3. How the books are organized
 
@@ -165,7 +177,7 @@ An example `request.json` that sets up books and records two transactions:
 The answer:
 
 ```json
-{"commit":"f147e20f-6f64-4a8e-9419-a50bcbfaa7a7","depth":1,"ids":{"books":1}}
+{"commit":"413917e9-7ec9-404a-8f07-d3ea80447a0d","depth":1,"ids":{"books":1}}
 ```
 
 ### Mutation types
@@ -232,14 +244,15 @@ curl -s http://127.0.0.1:8420/ledgers
 ```
 
 ```json
-{"ledgers":[{"id":1,"name":"Marlow Studio LLC"}]}
+{"commit":"413917e9-7ec9-404a-8f07-d3ea80447a0d","ledgers":[{"id":1,"name":"Marlow Studio LLC"}]}
 ```
 
 After the example request in section 4, the chart of accounts is this, shown here on several
 lines:
 
 ```json
-{"ledgerId": 1,
+{"commit": "413917e9-7ec9-404a-8f07-d3ea80447a0d",
+ "ledgerId": 1,
  "accounts": [
    {"fqn": "Assets", "totals": {"USD": "8187.42"}},
    {"fqn": "Assets:Checking", "totals": {"USD": "8187.42"}},
@@ -262,3 +275,21 @@ lines:
 - `?asOf=YYYY-MM-DD` counts only the lines dated on or before that day:
   `/ledgers/1/accounts?asOf=2026-07-20`.
 - A ledger id that doesn't exist is answered with status 404.
+
+### Reading at an earlier commit
+
+Every read answers with `commit`, the id of the commit it read: the latest, unless the
+request names another with `?commit=<id>`. That reads the books as they were when that commit
+was made, and it combines with `asOf`:
+
+```sh
+curl -s 'http://127.0.0.1:8420/ledgers?commit=d3361aa6-1977-4168-b922-62d77effc408'
+```
+
+```json
+{"commit":"d3361aa6-1977-4168-b922-62d77effc408","ledgers":[]}
+```
+
+That is the commit the realm started at, before the example request, so it has no ledgers. A
+commit id comes from the answer to `POST /commit`, from any read, or from `head` in `GET /`.
+An id that isn't a commit's is answered with status 404.

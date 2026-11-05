@@ -6,6 +6,36 @@ change the API, and this file says how. A release's jar is named `exobooks-<vers
 and a running server gives its version as the first line it prints and as `version` in the
 answer to `GET /`.
 
+## 0.2.0 (2026-11-04)
+
+The jar is `exobooks-0.2.0.jar`. Books made with 0.1.0 open as they are.
+
+### Added
+
+- Reads at an earlier commit. `GET /ledgers` and `GET /ledgers/<id>/accounts` take
+  `?commit=<id>` and answer from the books as they were when that commit was made; on the
+  chart of accounts it combines with `asOf`. A commit id that isn't a UUID is refused (400),
+  and one that names no commit is answered 404.
+- `POST /shutdown`, sent as `Content-Type: application/json` like any `POST`, answers
+  `{"stopping": true}` and then stops the server, which exits with status 0. Without that
+  content type it is refused (415), so a web page open in a browser can't stop the server.
+- While a server runs, its process id is in `server.pid` in the data directory. The file is
+  deleted when the server stops, by `POST /shutdown` or by a signal such as `kill`.
+
+### Changed
+
+- The answers to `GET /ledgers` and `GET /ledgers/<id>/accounts` now begin with `commit`, the
+  id of the commit that was read, so the same state can be read again later. The rest of each
+  answer is as before.
+- `GET /ledgers` refuses a query parameter other than `commit` (400).
+- One server runs on a data directory at a time. Before, a second server started on the same
+  directory would open the same books, and two could write to them at once. Now the second
+  start is refused, says which process has the directory, and exits with status 1. This is
+  an operating system lock, not the presence of `server.pid`, so a file left behind by a
+  server that was killed doesn't block the next start.
+- A port that is already in use is refused with a message that says so and suggests
+  `--port`, and status 1. Before, it was a Java stack trace.
+
 ## 0.1.0 (2026-11-04)
 
 The first release of the local server: `java -jar exobooks-0.1.0.jar` starts it and keeps
