@@ -30,7 +30,8 @@ current directory. This needs no root and no package manager, and leaves any oth
 ```sh
 os=$(uname -s | sed 's/Darwin/mac/; s/Linux/linux/')
 cpu=$(uname -m | sed 's/arm64/aarch64/; s/x86_64/x64/')
-url="https://api.adoptium.net/v3/binary/latest/26/ga/$os/$cpu/jre/hotspot/normal/eclipse"
+release=https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.2.1%2B1
+url="$release/OpenJDK26U-jre_${cpu}_${os}_hotspot_26.0.2.1_1.tar.gz"
 mkdir -p java26 && curl -fsSL "$url" | tar -xz -C java26 --strip-components=1
 ```
 
