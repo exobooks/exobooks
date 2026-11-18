@@ -6,6 +6,89 @@ change the API, and this file says how. A release's jar is named `exobooks-<vers
 and a running server gives its version as the first line it prints and as `version` in the
 answer to `GET /`.
 
+## 0.6.0 (2026-11-18)
+
+The jar is `exobooks-0.6.0.jar`. The numbers 0.3.0 to 0.5.1 have no jar: they went to the hosted
+service at exobooks.ai, which shares this numbering.
+
+Books made with 0.2.0 or earlier can't be opened: start this version on a new data directory.
+From this version on, a newer version migrates the books it finds.
+
+### Breaking
+
+- `POST /commit` requires `exobooksVersion`, the version of exobooks the request was written
+  against. Without it the request is answered 400. A request written against a version that a
+  later one has broken is answered 409 and changes nothing, and the error's `data` gives
+  `changes`, where to read what has changed, and `serverVersion`.
+- `error` in an error's answer is an object, not a sentence: `message` is the sentence, and
+  `data` an object of the values the error concerns, which are no longer written into the
+  sentence. A refused commit's `mutation` and `failingAssertions` are in `error`'s `data`, not
+  beside `error`. A refused mutation's sentence no longer begins with its type, and one about a
+  transaction's line gives the line's position in `data` as `line`. An error from SQLite gives
+  SQLite's message in `data` as `sqlite`.
+
+### Added
+
+- `POST /query` answers read-only SQL on the books, at the latest commit or an earlier one.
+  It takes `exobooksVersion`, and refuses as `POST /commit` does.
+- `GET /export`, optionally `?commit=<id>`, gives the books as an SQLite file.
+- `POST /commit` takes `message`, kept with the commit, and `dryRun`, which checks everything
+  and commits nothing.
+- Mutations that change and delete: `update_account`, `delete_account`, `update_transaction`,
+  `update_line` and `delete_transaction`.
+- Counterparties: `create_counterparty`, `update_counterparty` and `delete_counterparty`, and
+  `counterpartyId` on a line.
+- Metadata: `create_metadata_key`, `update_metadata_key` and `set_metadata`, and `metadata` on
+  what a mutation creates. A key declared `unique` has at most one row with each value.
+- Balance assertions: `create_balance_assertion` and `delete_balance_assertion`. A commit that
+  would break an assertion is refused, with `failingAssertions` in the error's `data`.
+- `create_account` takes `parentId`, `openedOn`, `closedOn` and `placeholder`. A line can't be
+  on a placeholder, or dated outside its account's opening and closing dates.
+- A transaction's lines can have tempids.
+- `GET /ledgers/<id>/accounts` gives each account's `id`, `parentId` and `placeholder`, and
+  `openedOn` and `closedOn` if it has them.
+- `exobooksVersion` in every JSON object answered, saying which version answered.
+- `contextForAgents` on any answer: short notes about what the request may have got wrong, or
+  what to know about the answer.
+- The start line `Serving on http://127.0.0.1:<port>` adds how long the server took to start,
+  `, started in <n> ms`.
+- Migrations. A version of exobooks whose database schema is newer than the books' migrates
+  them when it starts, while the server answers. Until it's done, `realm` in the answer to
+  `GET /` has `"migrating": {"from": <n>, "to": <n>}`, the schema versions, the start line
+  `Opened the realm in <path>, <n> commits` adds `; migrating it from schema version <n> to
+  <n>, and until that's done its API answers 503`, and every request other than `GET /` and
+  `POST /shutdown` is answered 503 with `migrating` in the error's `data`. Commit ids stay the
+  same, so a read at a commit made before the migration still works. The books in the earlier
+  schema are left on disk as they were. If the migration fails, `realm` in the answer to
+  `GET /` has `error`, and the other requests are answered 500 with it.
+- The data directory has a `README.md`, which the server writes each time it starts. It says
+  that the books are read and changed through the API and not through the files there, gives
+  the version and address of the server that last started on the directory, and says what
+  each file is. No file in the directory opens with `sqlite3` or another tool.
+- `"ifAbsent": true` on any `create_*` mutation makes it safe to send again: if the row it
+  would create exists, the mutation does nothing, its tempid names the row that exists, and
+  `skipped` in the answer lists its position; if nothing changed at all, no commit is made
+  and the answer has `"unchanged": true`. The row that exists is the one the create's
+  unique metadata values name, when it gives a value for a unique key, or else the one with
+  its natural key: a currency with its code, a metadata key with its name, an account with
+  its path in its ledger, a ledger or a counterparty with its name, a balance assertion with
+  its account, currency, date and amount. A natural key that names more than one row is
+  refused, as is a metadata key that exists but differs in being unique, and a transaction
+  with `ifAbsent` but no value for a unique key, in its metadata or a line's.
+
+### Changed
+
+- The books are stored in a new form, so that commits keep their ids through migrations.
+  This version can't open books made with 0.2.0 or 0.1.0: it says so and exits with status 1,
+  and the fix is a new data directory. Books whose schema is newer than this version's, or
+  not one of its versions at all, are refused the same way. Before, a database of another
+  schema was refused with a list of the tables and indexes that differ.
+
+### Fixed
+
+- `POST /commit` answers a request with a query parameter 400, naming the parameter. Before,
+  the parameter was ignored, so `POST /commit?dryRun=true` committed.
+
 ## 0.2.0 (2026-11-04)
 
 The jar is `exobooks-0.2.0.jar`. Books made with 0.1.0 open as they are.
