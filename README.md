@@ -6,6 +6,10 @@ bookkeeping intelligence is your own AI agent, working them from outside.
 exobooks runs on your own machine as a small local server with an HTTP API. The books are
 stored in a versioned SQLite database on local disk, and the server makes no network calls.
 
+exobooks comes from [exobooks.ai](https://exobooks.ai/), where a hosted version keeps the books
+for you, behind the same API for the books. This repository is the free local version: the same
+ledger, run on your own machine, with nothing to sign up for.
+
 What makes it a good place for an agent to keep books:
 
 - **A flexible, modern schema.** Any number of ledgers in one database, transactions that can
