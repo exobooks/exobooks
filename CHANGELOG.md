@@ -6,6 +6,71 @@ change the API, and this file says how. A release's jar is named `exobooks-<vers
 and a running server gives its version as the first line it prints and as `version` in the
 answer to `GET /`.
 
+## 0.16.2 (2026-11-24)
+
+The jar is `exobooks-0.16.2.jar`. The numbers 0.7.0 to 0.16.1 have no jar: what they changed is
+listed here. Books made with 0.6.0 are migrated when this version starts on them.
+
+### Breaking
+
+- A ledger's name, and a counterparty's, is unique in the realm: `create_ledger`,
+  `create_counterparty` and `update_counterparty` refuse a name another has. In a realm that had two
+  or more with the same name, one keeps it and the others' names end with their ids: `"Sam (3)"`.
+- The `currency` table's column `name` is now `description`, and `create_currency`'s field `name`
+  is `description`.
+- Every amount in an answer is in its shortest form, with no trailing zeros: `"2400"`,
+  `"-312.5"`, `"0.125"`, where it was `"2400.00"` and `"-312.50"`. This holds for `POST /query`,
+  the totals of `GET /ledgers/<id>/accounts`, and the amounts in errors.
+- `bigdec_round` rounds half away from zero, as SQLite's `round` does: `bigdec_round(bigdec('2.5'))`
+  is 3, where it was 2.
+- Balance assertions are gone: the mutations `create_balance_assertion` and
+  `delete_balance_assertion`, the table `balance_assertion`, `balanceAssertion` as a `table` of
+  `set_metadata`, and the check of every commit and undo against them, which refused one with
+  `failingAssertions`. A realm's balance assertions, and their metadata, are dropped when it is
+  migrated, and its history no longer has them.
+- A request that declares an `exobooksVersion` before 0.13.0, 0.6.0 included, is answered 409:
+  0.7.0, 0.12.0 and 0.13.0 each broke what came before.
+
+### Added
+
+- The docs of this version in the work directory, written on every start: `docs/api.md`, this
+  server's API documentation; `docs/guide.md`, a guide to keeping books well with the API, such as
+  how to import from a particular bank; `docs/changelog.md`, this file; and `docs/schema.sql`, the
+  ledger schema. The work directory's `README.md` points to them.
+
+- Feeds and feed lines: a feed is a source of transaction data for one account, such as a bank
+  account or a CSV of a card's statements, and its feed lines are the records it gives, each with a
+  date, an amount, a memo and the source's record as JSON. `create_feed`, `update_feed`,
+  `delete_feed`, `create_feed_line`, `update_feed_line` and `delete_feed_line` write them, and a
+  feed line can be marked excluded, with a note. `link_feed_line` records that a ledger line was
+  imported from a feed line, and `unlink_feed_line` undoes it; a feed line that is imported can't
+  be deleted. The tables are `feed`, `feed_line` and `line_feed_line`. A feed's `displayName`
+  need not be unique, so `create_feed` with `ifAbsent` finds a feed only by a unique key's value in
+  its metadata, and with none creates one.
+- `GET /commits` lists the realm's commits, latest first, with each one's time and message.
+  `GET /commits/<id>` says what one commit changed, row by row. `POST /commits/<id>/undo` undoes a
+  commit with a new commit, and answers 409 with the conflicts if later commits stand in its way.
+- `POST /query` takes bigdecs, the type of amounts, as exact decimal numbers: `sum(amount)`,
+  `amount * 1.1`, `amount > 100.50` and the like work without `bigdec_` functions. The server
+  rewrites the query to call them, and an `EXPLAIN` answer gives the rewritten statement as
+  `rewritten`. A computed amount named with `AS` comes back as decimal text, not a BLOB. Using as a
+  bigdec what can't be one, such as a string, a `?` or a floating-point number, is answered 400
+  with what to write instead, as `bigdec(?)`. `bigdec(?)` takes a string or an integer from
+  `params`, and refuses a JSON number with a decimal point or an exponent.
+- `bigdec_text(x, n)` writes a bigdec rounded to `n` decimal places, with exactly `n`.
+
+### Fixed
+
+- `update_transaction` takes a line's tempid as a line's `lineId`, as every other field that takes
+  an id does. Before, a tempid that an earlier mutation in the same commit gave a line, such as the
+  `create_transaction` before it, was refused 400 with "lineId isn't a line of the transaction".
+
+### Guide
+
+- Mercury: if your user banks at Mercury, read Mercury's own API with a read-only token the user
+  makes, and write what it gives as feed lines, its failed payments and cardholders included; and
+  how to use its statements.
+
 ## 0.6.0 (2026-11-18)
 
 The jar is `exobooks-0.6.0.jar`. The numbers 0.3.0 to 0.5.1 have no jar: they went to the hosted
