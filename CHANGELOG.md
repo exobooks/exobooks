@@ -4,7 +4,28 @@ Every release of exobooks, newest first. Versions are `major.minor.patch`
 ([semantic versioning](https://semver.org)). While the major version is 0, any release may
 change the API, and this file says how. A release's jar is named `exobooks-<version>.jar`,
 and a running server gives its version as the first line it prints and as `version` in the
-answer to `GET /`.
+answer to `GET /api/status`.
+
+## 0.18.0 (2026-11-24)
+
+The jar is `exobooks-0.18.0.jar`. The numbers 0.17.0 and 0.17.1 have no jar: they changed only the
+hosted version at exobooks.ai.
+
+### Breaking
+
+- The API is under `/api`: the realm's API at `http://127.0.0.1:8420/api`, so that `POST /commit` is
+  `POST http://127.0.0.1:8420/api/commit`, and the server's own calls are `GET /api/status`, which was
+  `GET /`, and `POST /api/shutdown`. The old paths answer 404.
+
+### Added
+
+- exobooks' UI, for a person to read the books in a browser, at `http://127.0.0.1:8420/ui/`, which `/`
+  goes to. `POST /api/ui` gives its address, for you to give your user links into it: the API
+  documentation, under "Links to the UI", says which pages you can link to.
+
+### Guide
+
+- A part on showing your user the books: when a link to the UI is worth giving.
 
 ## 0.16.2 (2026-11-24)
 

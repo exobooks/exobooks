@@ -3,8 +3,9 @@
 A ledger system of record for bookkeeping agents: the books live in exobooks, and the
 bookkeeping intelligence is your own AI agent, working them from outside.
 
-exobooks runs on your own machine as a small local server with an HTTP API. The books are
-stored in a versioned SQLite database on local disk, and the server makes no network calls.
+exobooks runs on your own machine as a small local server with an HTTP API, and a UI in which
+your user reads the books in a browser. The books are stored in a versioned SQLite database on
+local disk, and the server makes no network calls.
 
 exobooks comes from [exobooks.ai](https://exobooks.ai/), where a hosted version keeps the books
 for you, behind the same API for the books. This repository is the free local version: the same
@@ -26,8 +27,8 @@ What makes it a good place for an agent to keep books:
 
 **Status: early.** You can record and correct accounts, transactions, counterparties,
 metadata, and feeds and their lines; read the books with SQL as they are now or as they were
-at any earlier commit; list the history and undo a commit; and export the books as an SQLite
-file. Ledgers and currencies can't be changed or deleted once made. Everything here will
+at any earlier commit; list the history and undo a commit; export the books as an SQLite file;
+and link your user to views of the books in the UI, which only reads them. Ledgers and currencies can't be changed or deleted once made. Everything here will
 change; [CHANGELOG.md](CHANGELOG.md) says what each release changed.
 
 **If you are an agent,** this file says how to install and start exobooks. The docs, which
@@ -67,13 +68,13 @@ That is Eclipse Temurin 26, an open-source build of Java, at `java26/bin/java` o
 ### The jar
 
 ```sh
-curl -fLO https://github.com/exobooks/exobooks/releases/download/v0.16.2/exobooks-0.16.2.jar
+curl -fLO https://github.com/exobooks/exobooks/releases/download/v0.18.0/exobooks-0.18.0.jar
 ```
 
 ## 2. Start the server
 
 ```sh
-java -jar exobooks-0.16.2.jar
+java -jar exobooks-0.18.0.jar
 ```
 
 This command does not return: the server runs until it is stopped. Start it as a background
@@ -81,9 +82,9 @@ process and leave it running while you work. It prints three lines on standard o
 may print notices of its own before them, on standard error):
 
 ```
-exobooks 0.16.2
+exobooks 0.18.0
 Created a new realm in /path/to/exobooks-data
-Serving on http://127.0.0.1:8420, started in 628 ms
+Serving on http://127.0.0.1:8420, started in 646 ms
 ```
 
 The books are kept in its *work directory*, `exobooks-data` in the directory the server was
@@ -93,20 +94,23 @@ it prints `Opened the realm in ..., 12 commits` instead.
 To check it is up:
 
 ```sh
-curl -s http://127.0.0.1:8420/
+curl -s http://127.0.0.1:8420/api/status
 ```
 
 ```json
-{"service":"exobooks-local","version":"0.16.2","realm":{"head":"11509d44-71ab-4f12-9623-99f51a27792f","depth":0},"exobooksVersion":"0.16.2"}
+{"service":"exobooks-local","version":"0.18.0","realm":{"head":"44439815-0878-438d-9d68-d0763fa502e8","depth":0},"exobooksVersion":"0.18.0"}
 ```
 
 To stop it:
 
 ```sh
-curl -s -X POST http://127.0.0.1:8420/shutdown -H 'Content-Type: application/json'
+curl -s -X POST http://127.0.0.1:8420/api/shutdown -H 'Content-Type: application/json'
 ```
 
-It answers `{"stopping":true,"exobooksVersion":"0.16.2"}` and exits.
+It answers `{"stopping":true,"exobooksVersion":"0.18.0"}` and exits.
+
+While it runs, your user can read the books at `http://127.0.0.1:8420/ui/`, and you can link
+them to particular views there: `docs/api.md` says how, under "Links to the UI".
 
 ## 3. Read the docs
 
