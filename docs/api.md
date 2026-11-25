@@ -1,10 +1,10 @@
 # exobooks API: the local server
 
-> **Version 0.16.2** · [changelog](changelog.md)
+> **Version 0.18.0** · [changelog](changelog.md)
 
 exobooks is a ledger system of record for bookkeeping agents: the books live in exobooks, a double-entry ledger with any number of ledgers and currencies and a history of every change, and the bookkeeping intelligence is your own AI agent, working the books from outside through this HTTP API. This server runs on the user's own machine and keeps the books on its disk. It makes no network calls.
 
-This is the whole documentation of exobooks 0.16.2, the version of the server that wrote it. The server writes its docs into the `docs/` directory of its work directory each time it starts, so they always describe the server that last ran there:
+This is the whole documentation of exobooks 0.18.0, the version of the server that wrote it. The server writes its docs into the `docs/` directory of its work directory each time it starts, so they always describe the server that last ran there:
 
 | File | What it is |
 |---|---|
@@ -20,13 +20,13 @@ This is the whole documentation of exobooks 0.16.2, the version of the server th
 ## Starting and stopping the server
 
 ```sh
-java -jar exobooks-0.16.2.jar [--dir <work directory>] [--port <port>]
+java -jar exobooks-0.18.0.jar [--dir <work directory>] [--port <port>]
 ```
 
 This command does not return: the server runs until it is stopped. Start it as a background process and leave it running while you work. It prints three lines on standard output (Java may print notices of its own before them, on standard error):
 
 ```
-exobooks 0.16.2
+exobooks 0.18.0
 Created a new realm in /path/to/exobooks-data
 Serving on http://127.0.0.1:8420, started in 563 ms
 ```
@@ -36,37 +36,37 @@ Serving on http://127.0.0.1:8420, started in 563 ms
 - `--port` changes the port, 8420 by default.
 - One server runs on a work directory at a time. It holds a lock on `server.pid` there, which has its process id while it runs and is deleted when it stops. A second start on the directory is refused and names that process. A `server.pid` left by a server that was killed doesn't block the next start.
 - A start is refused, too, if the port is taken. A refused start says why and exits with status 1.
-- Books made by a version with an earlier schema are migrated when the server starts, while it answers. Until that is done, `realm` in the answer to `GET /` has `"migrating": {"from": <n>, "to": <n>}`, the schema versions, and every other request except `POST /shutdown` is answered 503. Commit ids stay the same.
+- Books made by a version with an earlier schema are migrated when the server starts, while it answers. Until that is done, `realm` in the answer to `GET /api/status` has `"migrating": {"from": <n>, "to": <n>}`, the schema versions, and every other request except `POST /api/shutdown` is answered 503. Commit ids stay the same.
 - Books this version can't open, made by a later version or by exobooks 0.2.0 or earlier, make the server say so and exit with status 1. Start it on a new directory, or, for a later version's books, use that version.
 
-`GET /` says the server is up, its version, and the realm's latest commit (`head`) and the number of commits made so far (`depth`):
+`GET /api/status` says the server is up, its version, and the realm's latest commit (`head`) and the number of commits made so far (`depth`):
 
 ```sh
-curl -s http://127.0.0.1:8420/
+curl -s http://127.0.0.1:8420/api/status
 ```
 
 ```json
-{"service": "exobooks-local", "version": "0.16.2", "realm": {"head": "f770c3cc-77ef-43da-93d3-653fe08a3055", "depth": 0}, "exobooksVersion": "0.16.2"}
+{"service": "exobooks-local", "version": "0.18.0", "realm": {"head": "f770c3cc-77ef-43da-93d3-653fe08a3055", "depth": 0}, "exobooksVersion": "0.18.0"}
 ```
 
 To stop it:
 
 ```sh
-curl -s -X POST http://127.0.0.1:8420/shutdown -H 'Content-Type: application/json'
+curl -s -X POST http://127.0.0.1:8420/api/shutdown -H 'Content-Type: application/json'
 ```
 
 It answers `{"stopping": true}` and exits. Ending the process with `kill` stops it cleanly too.
 
 ## The realm's address
 
-The server has one realm, and the realm's API, which the rest of this document describes, is at the server's own address, `http://127.0.0.1:8420` (with the port it was started on). Its paths are under that address: `POST /commit` is `POST http://127.0.0.1:8420/commit`.
+The server has one realm, and the realm's API, which the rest of this document describes, is under `/api` at the server's address, `http://127.0.0.1:8420/api` (with the port it was started on). Its paths are under that address: `POST /commit` is `POST http://127.0.0.1:8420/api/commit`.
 
-The server listens on 127.0.0.1 only and has no authentication. So that a web page open in a browser on the same machine can't use it, a request whose `Host` header isn't `localhost` or a loopback address is answered 403, and a `POST` whose body isn't sent as `Content-Type: application/json` is answered 415, `POST /shutdown` included. A path the server doesn't have is answered 404.
+The server listens on 127.0.0.1 only and has no authentication. So that a web page open in a browser on the same machine can't use it, a request whose `Host` header isn't `localhost` or a loopback address is answered 403, and a `POST` whose body isn't sent as `Content-Type: application/json` is answered 415, `POST /api/shutdown` included. A path the server doesn't have is answered 404.
 
 Put a request's body in a file and send the file, so the shell doesn't have to quote JSON:
 
 ```sh
-curl -s -X POST http://127.0.0.1:8420/commit -H 'Content-Type: application/json' --data @request.json
+curl -s -X POST http://127.0.0.1:8420/api/commit -H 'Content-Type: application/json' --data @request.json
 ```
 
 ## Versions, and what has changed
@@ -75,7 +75,7 @@ exobooks has a version number, `major.minor.patch`, for everything you can depen
 
 A new major version may break what came before, a minor version adds to it, and a patch fixes a bug. While the major version is 0, a minor version may also break what came before, and its entry in the changelog says so under `### Breaking`.
 
-The server gives its version as the first line it prints, as `version` in the answer to `GET /`, and as `exobooksVersion` in every JSON object it answers. Say which version you wrote a request against by sending `exobooksVersion` in its body: `POST /commit` requires it, and `POST /query` takes it. A request written against a version that a later one has broken is answered 409 and changes nothing.
+The server gives its version as the first line it prints, as `version` in the answer to `GET /api/status`, and as `exobooksVersion` in every JSON object it answers. Say which version you wrote a request against by sending `exobooksVersion` in its body: `POST /commit` requires it, and `POST /query` takes it. A request written against a version that a later one has broken is answered 409 and changes nothing.
 
 `changelog.md`, beside this file, says what changed in each version up to this one, newest first. If you keep notes between sessions, record the version you last read, and when the server gives a newer one, read what changed: a workaround in your notes may no longer be needed. New versions are released at https://github.com/exobooks/exobooks/releases.
 
@@ -124,7 +124,7 @@ Any answer, an error included, may carry `contextForAgents`: a list of short not
 ## Writing: `POST /commit`
 
 ```json
-{"exobooksVersion": "0.16.2", "mutations": [...], "message": "Categorized October's card charges, as approved", "dryRun": false}
+{"exobooksVersion": "0.18.0", "mutations": [...], "message": "Categorized October's card charges, as approved", "dryRun": false}
 ```
 
 `exobooksVersion` is required: the version of exobooks the request was written against, the one this document describes. If a later version has broken what that version did, the request is answered 409 and changes nothing: read what has changed, at the address in the error's `data` as `changes`, and send the request again with `serverVersion`, also in `data`, as its `exobooksVersion`.
@@ -190,7 +190,7 @@ A line of `create_transaction` has the account, `amount`, `currency` and `date`,
 An example that sets up books and records a transaction from a bank's feed, which can be sent again without recording anything twice, since every create has `ifAbsent` and the transaction carries the bank's id under a unique key:
 
 ```json
-{"exobooksVersion": "0.16.2", "mutations": [
+{"exobooksVersion": "0.18.0", "mutations": [
   {"type": "create_currency", "code": "USD", "description": "US dollar", "ifAbsent": true},
   {"type": "create_metadata_key", "name": "bank.id", "unique": true, "description": "The bank's id for a transaction", "ifAbsent": true},
   {"type": "create_ledger", "id": "books", "name": "Marlow Studio LLC", "ifAbsent": true},
@@ -249,7 +249,7 @@ Feeds can overlap, and a feed can repeat itself: the same charge may come from a
 Importing feed line 41, a hosting charge on checking:
 
 ```json
-{"exobooksVersion": "0.16.2", "mutations": [
+{"exobooksVersion": "0.18.0", "mutations": [
   {"type": "create_transaction", "memo": "AMAZON WEB SERVICES aws.amazon.com", "lines": [
     {"id": "bank", "ledgerId": 1, "accountFQN": "Assets:Checking", "amount": "-312.58", "currency": "USD", "date": "2026-07-24"},
     {"ledgerId": 1, "accountFQN": "Expenses:Hosting", "amount": "312.58", "currency": "USD", "date": "2026-07-24"}
@@ -271,7 +271,7 @@ Every read answers with `commit`, the id of the commit it read: the latest, unle
 ### SQL: `POST /query`
 
 ```json
-{"exobooksVersion": "0.16.2", "sql": "SELECT date, memo FROM line WHERE account_id = ? ORDER BY date", "params": [6], "commit": "<id>"}
+{"exobooksVersion": "0.18.0", "sql": "SELECT date, memo FROM line WHERE account_id = ? ORDER BY date", "params": [6], "commit": "<id>"}
 ```
 
 `exobooksVersion` is optional here, and works as it does on a commit. Send it with a query you save, so that a later version that breaks the query refuses it rather than answering something else.
@@ -333,7 +333,7 @@ The `commit` outside the list is the latest one. In the list, `message`, `author
 ### Undoing a commit: `POST /commits/<id>/undo`
 
 ```json
-{"exobooksVersion": "0.16.2", "message": "Entered twice, as Ada pointed out", "dryRun": false}
+{"exobooksVersion": "0.18.0", "message": "Entered twice, as Ada pointed out", "dryRun": false}
 ```
 
 Undoing a commit writes the inverse of its changes as a new commit, so nothing leaves the history, and an undo can itself be undone. `exobooksVersion`, `message` and `dryRun` work as they do on `POST /commit`, and the answer is a commit's, with `undid` the commit undone. A commit that changed nothing has nothing to undo: no commit is made and the answer has `"unchanged": true`.
@@ -370,3 +370,36 @@ To undo such a commit, first undo or change what stands in the way, usually the 
 The realm's database, at the latest commit or at `?commit=<id>`, as an SQLite file (`application/vnd.sqlite3`) that any SQLite opens: every table above, everything in it. Keep it as a backup, or read it with your own tools.
 
 Amounts in the file are bigdecs, which a plain SQLite can't do arithmetic on. To read one, decode its bytes: the single byte `80` (hex) is zero. Any other amount is ±0.d₁d₂…dₙ × 100^E, with base-100 digits dᵢ and the first and last not 0. Its first byte is `C0 + E` for a positive amount and `100 − (C0 + E)` (hex) for a negative one, and a byte follows for each digit: dᵢ for a positive amount; for a negative one, 99 − dᵢ for each digit but the last, and 100 − dₙ for the last. So `c1 0c 32` is 12.50, `3f 57 32` is −12.50, and `c2 18` is 2400.
+
+## Links to the UI
+
+exobooks has a UI in which a person reads the books, and you can link your user to a view of their books in it: the lines you aren't sure of, what your last commits changed, a statement for the quarter. Give a link where it saves your user reading a table you would otherwise paste. The guide says when.
+
+`POST /ui`, with `{}`, gives the address to put a page's path after, `url`, and from a server whose UI asks your user to sign in, `signinUrl`, the same signed in, and `expiresAt`. The free local server's UI answers only its own machine and asks nobody to sign in:
+
+```json
+{"url": "http://127.0.0.1:8420/ui"}
+```
+
+A server that asks your user to sign in answers with all three:
+
+```json
+{"url": "https://books.example/ui/realms/<id>", "signinUrl": "https://books.example/ui/s/k3J9xQ2mP7aZ", "expiresAt": "..."}
+```
+
+A link is a page's path, from the table below, after `signinUrl` when the answer has one, and after `url` when it doesn't: `http://127.0.0.1:8420/ui/accounts/42/2026-10`, or `https://books.example/ui/s/k3J9xQ2mP7aZ/accounts/42/2026-10`. `signinUrl` signs your user's browser in, to read only, for about an hour after it was made, and any number of times in that hour, so make one link after another from it, but call `POST /ui` again for each reply of yours that has links, and never reuse an older one. The UI can't change the books: changes go through you.
+
+Write a link from the paths below and nothing else: they are part of this API, and they go on working. Rows are named by their ids, never their names.
+
+| Path | What it shows |
+|---|---|
+| `/commits/<n>` | What commit number `n` changed, `depth` in `GET /commits` and in a commit's answer. |
+| `/changes/<n>..<m>` | What commits `n` to `m` changed, both included: what you did in a session, for your user to review. |
+| `/transactions/<id>` | One transaction: its lines, its metadata, and the feed lines it was imported from. |
+| `/accounts/<id>`, `/counterparties/<id>`, `/transactions/<id>,<id>,...`, `/ledgers/<id>/lines` | A list of lines: an account's (its sub-accounts' included), a counterparty's, some transactions', or a ledger's, followed by any of the filters below. |
+| `/ledgers/<id>/accounts`, `/ledgers/<id>/income`, `/ledgers/<id>/balances` | The chart of accounts, the income statement and the balance sheet, followed by dates, then `months`, `quarters` or `years`, either or both: `/ledgers/1/income/2026/quarters`. |
+| `/feeds/<id>` | A feed's lines, and with `/unimported`, `/imported` or `/excluded` after it, those alone. |
+
+The filters of a list of lines follow its path, in any number, each once: dates as they are, `2026`, `2026-10`, `2026-10-05` or a range with both ends included, `2026-01..2026-03`, either end left out to leave it open; `over/<amount>` and `under/<amount>`, which compare a line's amount whatever its sign; `account/<id>` (its sub-accounts' included), `counterparty/<id>`, `tag/<name>` and `text/<words>`, which looks in memos, counterparties' names and accounts' paths; and `marked/<transaction id>,...`, which marks those transactions' lines among the rest. Percent-encode text: `text/web%20hosting`. So `/accounts/42/2026-10/over/1000/marked/317,318` is account 42's lines in October 2026 over 1,000, with transactions 317 and 318 marked.
+
+Any of the paths after `/at/<n>`, `/at/12/ledgers/1/balances`, shows the books as they were at commit number `n`. Without it, a page shows the books as they are when your user opens it: what a list of lines still to categorize wants, while a review of a change wants the commit.

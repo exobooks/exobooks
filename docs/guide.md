@@ -2,6 +2,14 @@
 
 How to do bookkeeping well with exobooks: how it is meant to be used, recipes for common work, and how to work with particular banks. The API documentation says what each call does, and you can rely on it. This guide is advice: how to use the calls well. When you have a good reason to work differently, do. Before you start a task this guide has a part on, such as importing from a user's bank, read that part.
 
+## Showing your user the books
+
+You can link your user to pages of exobooks' UI (the API documentation, under "Links to the UI"). Link where your user would otherwise read a table you pasted, or take your word for what you did:
+
+- After commits your user should check, link to what they changed, `/changes/<n>..<m>`, rather than describing each change.
+- When you ask your user about some transactions, link to them, `/transactions/<id>,<id>`, or mark them among their account's lines, `/accounts/<id>/<dates>/marked/<id>,<id>`, so that your user sees them beside what came before and after.
+- When you report a figure, link to the lines or the statement behind it, so that your user can check it.
+
 ## Banks
 
 ### Mercury
@@ -45,7 +53,7 @@ Mercury lists an organization's accounts at three addresses, each with its own t
 Make one feed for each Mercury account, with Mercury's account id under a unique key, so that the next import finds it again with `ifAbsent`. Associate the feed with its ledger account with `update_feed`, once you know which account it is:
 
 ```json
-{"exobooksVersion": "0.16.2", "mutations": [
+{"exobooksVersion": "0.18.0", "mutations": [
   {"type": "create_currency", "code": "USD", "description": "US dollar", "ifAbsent": true},
   {"type": "create_metadata_key", "name": "mercury.accountId", "unique": true, "description": "Mercury's id for the account a feed is of", "ifAbsent": true},
   {"type": "create_metadata_key", "name": "mercury.transactionId", "unique": true, "description": "Mercury's id for the transaction a feed line is, or for its return", "ifAbsent": true},
